@@ -1,3 +1,19 @@
+# What this is?
+
+This is pinecone-text v0.3.4 compatible with Python3.11.
+
+## Why
+
+The pinecone-text with ver >= 0.4.0 does not support languages other than English.
+I wanted to use BM25 of this library for Japanese.
+
+## Changes
+
+- base: v0.3.4
+- removed torch related files and lines
+
+---
+
 # Pinecone text client
 
 Text utilities to work with Pinecone.
