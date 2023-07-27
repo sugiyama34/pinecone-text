@@ -5,7 +5,7 @@ from pathlib import Path
 
 import wget
 from scipy import sparse
-from typing import List, Callable, Optional, Dict, Union, Tuple, Any
+from typing import List, Callable, Optional, Dict, Union, Tuple
 from sklearn.feature_extraction.text import HashingVectorizer
 
 from pinecone_text.sparse import SparseVector
@@ -13,8 +13,8 @@ from pinecone_text.sparse.base_sparse_encoder import BaseSparseEncoder
 
 
 class BM25(BaseSparseEncoder):
-
-    """OKAPI BM25 implementation for single fit to a corpus (no continuous corpus updates supported)"""
+    """OKAPI BM25 implementation for single fit to a corpus
+    (no continuous corpus updates supported)"""
 
     def __init__(
         self,
@@ -44,8 +44,10 @@ class BM25(BaseSparseEncoder):
                 "The lazy dog is brown",
                 "The fox is brown"])
 
-            bm25.encode_documents("The brown fox is quick") # {"indices": [102, 18, 12, ...], "values": [0.21, 0.38, 0.15, ...]}
-            bm25.encode_queries("Which fox is brown?") # # {"indices": [102, 16, 18, ...], "values": [0.21, 0.11, 0.15, ...]}
+            bm25.encode_documents("The brown fox is quick")
+            # {"indices": [102, 18, 12, ...], "values": [0.21, 0.38, 0.15, ...]}
+            bm25.encode_queries("Which fox is brown?")
+            # {"indices": [102, 16, 18, ...], "values": [0.21, 0.11, 0.15, ...]}
             ```
         """
         if vocabulary_size > 2**28 - 1:
@@ -125,7 +127,7 @@ class BM25(BaseSparseEncoder):
         }
 
     def encode_queries(
-        self, texts: Union[str, List[str]]
+        self, texts: Union[str, List[str]], mode: str = "normalized"
     ) -> Union[SparseVector, List[SparseVector]]:
         """
         encode query to a sparse vector
@@ -136,16 +138,19 @@ class BM25(BaseSparseEncoder):
         if self.doc_freq is None or self.n_docs is None or self.avgdl is None:
             raise ValueError("BM25 must be fit before encoding queries")
 
+        if mode not in ("normalized", "original"):
+            raise ValueError("mode must be in {'normalized, 'original'}")
+
         if isinstance(texts, str):
-            return self._encode_single_query(texts)
+            return self._encode_single_query(texts, mode=mode)
         elif isinstance(texts, list):
-            return [self._encode_single_query(text) for text in texts]
+            return [self._encode_single_query(text, mode=mode) for text in texts]
         else:
             raise ValueError("texts must be a string or list of strings")
 
-    def _encode_single_query(self, text: str) -> SparseVector:
+    def _encode_single_query(self, text: str, mode: str = "normalized") -> SparseVector:
         query_tf = self._tf_vectorizer.transform([text])
-        indices, values = self._norm_query_tf(query_tf)
+        indices, values = self._compose_query_tf(query_tf, mode=mode)
         return {
             "indices": [int(x) for x in indices],
             "values": [float(x) for x in values],
@@ -224,26 +229,38 @@ class BM25(BaseSparseEncoder):
         self.vocabulary_size = vocabulary_size  # type: ignore
         return self
 
-    def _norm_doc_tf(self, doc_tf: sparse.csr_matrix) -> np.ndarray:
+    def _compose_doc_tf(
+        self, doc_tf: sparse.csr_matrix
+    ) -> np.ndarray:  # renamed from `_norm_doc_tf()` since no longer normalization
         """Calculate BM25 normalized document term-frequencies"""
         b, k1, avgdl = self.b, self.k1, self.avgdl
         tf = doc_tf.data
         norm_tf = tf / (k1 * (1.0 - b + b * (tf.sum() / avgdl)) + tf)
         return norm_tf
 
-    def _norm_query_tf(
-        self, query_tf: sparse.csr_matrix
-    ) -> Tuple[np.ndarray, np.ndarray]:
+    def _compose_query_tf(
+        self, query_tf: sparse.csr_matrix, mode: str = "normalized"
+    ) -> Tuple[
+        np.ndarray, np.ndarray
+    ]:  # renamed from `_norm_query_tf()` since no longer normalization
         """Calculate BM25 normalized query term-frequencies"""
-        tf = np.array([self.doc_freq.get(idx, 0) for idx in query_tf.indices])  # type: ignore
+        tf = np.array(
+            [self.doc_freq.get(idx, 0) for idx in query_tf.indices]
+        )  # type: ignore
         idf = np.log((self.n_docs + 1) / (tf + 0.5))  # type: ignore
-        return query_tf.indices, idf / idf.sum()
+        if mode == "normalized":
+            return query_tf.indices, idf / idf.sum()
+        elif mode == "original":
+            return query_tf.indices, idf * (1 + self.k1)
 
     @staticmethod
     def default() -> "BM25":
         """Create a BM25 model from pre-made params for the MS MARCO passages corpus"""
         bm25 = BM25(lambda x: x.split())
-        url = "https://storage.googleapis.com/pinecone-datasets-dev/bm25_params/msmarco_bm25_params.json"
+        url = (
+            "https://storage.googleapis.com/"
+            "pinecone-datasets-dev/bm25_params/msmarco_bm25_params.json"
+        )
         with tempfile.TemporaryDirectory() as tmp_dir:
             tmp_path = Path(tmp_dir, "msmarco_bm25_params.json")
             wget.download(url, str(tmp_path))
