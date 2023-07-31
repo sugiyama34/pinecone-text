@@ -135,7 +135,7 @@ class BM25(BaseSparseEncoder):
         }
 
     def encode_queries(
-        self, texts: Union[str, List[str]], mode: str = "normalized"
+        self, texts: Union[str, List[str]], method: str = "normalized"
     ) -> Union[SparseVector, List[SparseVector]]:
         """
         encode query to a sparse vector
@@ -146,21 +146,23 @@ class BM25(BaseSparseEncoder):
         if self.doc_freq is None or self.n_docs is None or self.avgdl is None:
             raise ValueError("BM25 must be fit before encoding queries")
 
-        if mode not in ("normalized", "original", "postprocessed"):
+        if method not in ("normalized", "original", "postprocessed"):
             raise ValueError(
-                "mode must be in {'normalized, 'original', 'postprocessed'}"
+                "method must be in {'normalized, 'original', 'postprocessed'}"
             )
 
         if isinstance(texts, str):
-            return self._encode_single_query(texts, mode=mode)
+            return self._encode_single_query(texts, method=method)
         elif isinstance(texts, list):
-            return [self._encode_single_query(text, mode=mode) for text in texts]
+            return [self._encode_single_query(text, method=method) for text in texts]
         else:
             raise ValueError("texts must be a string or list of strings")
 
-    def _encode_single_query(self, text: str, mode: str = "normalized") -> SparseVector:
+    def _encode_single_query(
+        self, text: str, method: str = "normalized"
+    ) -> SparseVector:
         query_tf = self._tf_vectorizer.transform([text])
-        indices, values = self._compose_query_tf(query_tf, mode=mode)
+        indices, values = self._compose_query_tf(query_tf, method=method)
         return {
             "indices": [int(x) for x in indices],
             "values": [float(x) for x in values],
@@ -249,7 +251,7 @@ class BM25(BaseSparseEncoder):
         return norm_tf
 
     def _compose_query_tf(
-        self, query_tf: sparse.csr_matrix, mode: str = "normalized"
+        self, query_tf: sparse.csr_matrix, method: str = "normalized"
     ) -> Tuple[
         np.ndarray, np.ndarray
     ]:  # renamed from `_norm_query_tf()` since no longer normalization
@@ -258,11 +260,11 @@ class BM25(BaseSparseEncoder):
             [self.doc_freq.get(idx, 0) for idx in query_tf.indices]
         )  # type: ignore
         idf = np.log((self.n_docs + 1) / (tf + 0.5))  # type: ignore
-        if mode == "normalized":
+        if method == "normalized":
             return query_tf.indices, idf / idf.sum()
-        elif mode == "original":
+        elif method == "original":
             return query_tf.indices, idf * (1 + self.k1)
-        elif mode == "postprocessed":
+        elif method == "postprocessed":
             return query_tf.indices, self._idf_poscprocess(idf)
 
     @staticmethod
