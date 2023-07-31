@@ -22,15 +22,21 @@ class BM25(BaseSparseEncoder):
         vocabulary_size: int = 2**24,
         b: float = 0.75,
         k1: float = 1.2,
+        idf_poscprocess: Callable[[np.ndarray[float]], np.ndarray[float]] = lambda x: x,
     ):
         """
         OKapi BM25 with HashingVectorizer
+
+        Original postprocess function for query idf can be specified
+        as `idf_poscprocess`.
 
         Args:
             tokenizer: A function to converts text to a list of tokens
             vocabulary_size: The hash size to which the tokens are mapped to
             b: The length normalization parameter
             k1: The term frequency normalization parameter
+            idf_poscprocess: A function to postprocess the idf vector used
+                in `encode_queries()`
 
         Example:
 
@@ -73,6 +79,8 @@ class BM25(BaseSparseEncoder):
             alternate_sign=False,
             binary=False,
         )
+
+        self._idf_poscprocess = idf_poscprocess
 
         # Learned Params
         self.doc_freq: Optional[Dict[int, float]] = None
@@ -138,8 +146,10 @@ class BM25(BaseSparseEncoder):
         if self.doc_freq is None or self.n_docs is None or self.avgdl is None:
             raise ValueError("BM25 must be fit before encoding queries")
 
-        if mode not in ("normalized", "original"):
-            raise ValueError("mode must be in {'normalized, 'original'}")
+        if mode not in ("normalized", "original", "postprocessed"):
+            raise ValueError(
+                "mode must be in {'normalized, 'original', 'postprocessed'}"
+            )
 
         if isinstance(texts, str):
             return self._encode_single_query(texts, mode=mode)
@@ -252,6 +262,8 @@ class BM25(BaseSparseEncoder):
             return query_tf.indices, idf / idf.sum()
         elif mode == "original":
             return query_tf.indices, idf * (1 + self.k1)
+        elif mode == "postprocessed":
+            return query_tf.indices, self._idf_poscprocess(idf)
 
     @staticmethod
     def default() -> "BM25":
