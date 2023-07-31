@@ -22,20 +22,20 @@ class BM25(BaseSparseEncoder):
         vocabulary_size: int = 2**24,
         b: float = 0.75,
         k1: float = 1.2,
-        idf_poscprocess: Callable[[np.ndarray[float]], np.ndarray[float]] = lambda x: x,
+        idf_postprocess: Callable[[np.ndarray[float]], np.ndarray[float]] = lambda x: x,
     ):
         """
         OKapi BM25 with HashingVectorizer
 
         Original postprocess function for query idf can be specified
-        as `idf_poscprocess`.
+        as `idf_postprocess`.
 
         Args:
             tokenizer: A function to converts text to a list of tokens
             vocabulary_size: The hash size to which the tokens are mapped to
             b: The length normalization parameter
             k1: The term frequency normalization parameter
-            idf_poscprocess: A function to postprocess the idf vector used
+            idf_postprocess: A function to postprocess the idf vector used
                 in `encode_queries()`
 
         Example:
@@ -80,7 +80,7 @@ class BM25(BaseSparseEncoder):
             binary=False,
         )
 
-        self._idf_poscprocess = idf_poscprocess
+        self._idf_postprocess = idf_postprocess
 
         # Learned Params
         self.doc_freq: Optional[Dict[int, float]] = None
@@ -265,7 +265,7 @@ class BM25(BaseSparseEncoder):
         elif method == "original":
             return query_tf.indices, idf * (1 + self.k1)
         elif method == "postprocessed":
-            return query_tf.indices, self._idf_poscprocess(idf)
+            return query_tf.indices, self._idf_postprocess(idf)
 
     @staticmethod
     def default() -> "BM25":
