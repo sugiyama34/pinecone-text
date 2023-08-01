@@ -22,9 +22,7 @@ class BM25(BaseSparseEncoder):
         vocabulary_size: int = 2**24,
         b: float = 0.75,
         k1: float = 1.2,
-        idf_postprocess: Optional[
-            Callable[[np.ndarray[float]], np.ndarray[float]]
-        ] = None,
+        idf_postprocess: Optional[Callable[[np.ndarray], np.ndarray]] = None,
     ):
         """
         OKapi BM25 with HashingVectorizer
