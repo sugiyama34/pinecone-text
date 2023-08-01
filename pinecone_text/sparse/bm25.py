@@ -22,7 +22,9 @@ class BM25(BaseSparseEncoder):
         vocabulary_size: int = 2**24,
         b: float = 0.75,
         k1: float = 1.2,
-        idf_postprocess: Callable[[np.ndarray[float]], np.ndarray[float]] = lambda x: x,
+        idf_postprocess: Optional[
+            Callable[[np.ndarray[float]], np.ndarray[float]]
+        ] = None,
     ):
         """
         OKapi BM25 with HashingVectorizer
@@ -80,7 +82,9 @@ class BM25(BaseSparseEncoder):
             binary=False,
         )
 
-        self._idf_postprocess = idf_postprocess
+        self._idf_postprocess: Optional[
+            Callable[[np.ndarray[float]], np.ndarray[float]]
+        ] = idf_postprocess
 
         # Learned Params
         self.doc_freq: Optional[Dict[int, float]] = None
@@ -265,6 +269,8 @@ class BM25(BaseSparseEncoder):
         elif method == "original":
             return query_tf.indices, idf * (1 + self.k1)
         elif method == "postprocessed":
+            if not self._idf_postprocess:
+                ValueError("idf_postprocess must be set to use postprocessed method")
             return query_tf.indices, self._idf_postprocess(idf)
 
     @staticmethod
