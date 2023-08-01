@@ -81,7 +81,7 @@ class BM25(BaseSparseEncoder):
         )
 
         self._idf_postprocess: Optional[
-            Callable[[np.ndarray[float]], np.ndarray[float]]
+            Callable[[np.ndarray], np.ndarray]
         ] = idf_postprocess
 
         # Learned Params
