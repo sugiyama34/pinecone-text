@@ -130,7 +130,7 @@ class BM25(BaseSparseEncoder):
 
     def _encode_single_document(self, text: str) -> SparseVector:
         doc_tf = self._tf_vectorizer.transform([text])
-        norm_doc_tf = self._norm_doc_tf(doc_tf)
+        norm_doc_tf = self._compose_doc_tf(doc_tf)
         return {
             "indices": [int(x) for x in doc_tf.indices],
             "values": [float(x) for x in norm_doc_tf.tolist()],
